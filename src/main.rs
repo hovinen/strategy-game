@@ -6,6 +6,7 @@ fn main() {
         .add_systems(Startup, spawn_initial_soliders)
         .add_systems(Startup, add_ui)
         .add_systems(Update, shoot_arrows)
+        .add_systems(Update, move_arrows)
         .insert_resource(ShootArrowsTimer(Timer::from_seconds(
             2.0,
             TimerMode::Repeating,
@@ -113,6 +114,12 @@ fn shoot_arrows(
                 MeshMaterial2d(material.clone()),
             ));
         }
+    }
+}
+
+fn move_arrows(arrows: Query<(&Arrow, &mut Transform)>) {
+    for (arrow, mut transform) in arrows {
+        transform.translation += arrow.velocity;
     }
 }
 
