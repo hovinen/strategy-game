@@ -1,6 +1,7 @@
 use bevy::prelude::*;
 
 use crate::arrow::Arrow;
+use crate::health::Health;
 use crate::team::Team;
 
 pub struct SoldierPlugin;
@@ -16,22 +17,22 @@ impl Plugin for SoldierPlugin {
 
 fn injure_soldiers(
     mut commands: Commands,
-    soldiers: Query<(&mut Soldier, &Transform)>,
+    soldiers: Query<(&mut Health, &Transform), With<Soldier>>,
     arrows: Query<(Entity, &Transform), With<Arrow>>,
 ) {
-    for (mut soldier, soldier_transform) in soldiers {
+    for (mut health, soldier_transform) in soldiers {
         for (entity, arrow_transform) in arrows {
             if (arrow_transform.translation - soldier_transform.translation).length() < 5.0 {
                 commands.entity(entity).despawn();
-                soldier.hit_points = soldier.hit_points.saturating_sub(10);
+                health.hit(10);
             }
         }
     }
 }
 
-fn kill_soldiers(mut commands: Commands, soldiers: Query<(Entity, &Soldier)>) {
-    for (entity, soldier) in soldiers {
-        if soldier.hit_points == 0 {
+fn kill_soldiers(mut commands: Commands, soldiers: Query<(Entity, &Health)>) {
+    for (entity, health) in soldiers {
+        if health.is_dead() {
             commands.entity(entity).despawn();
         }
     }
@@ -68,21 +69,24 @@ fn spawn_soldier_group(
     let mesh = meshes.add(Circle::new(10.0));
     let material = team.create_material(materials);
     commands.spawn((
-        Soldier::new(),
+        Soldier,
+        Health::new(100),
         Mesh2d(mesh.clone()),
         MeshMaterial2d(material.clone()),
         Transform::from_translation(centred_on + vec3(30.0, 30.0, 0.0)),
         team,
     ));
     commands.spawn((
-        Soldier::new(),
+        Soldier,
+        Health::new(100),
         Mesh2d(mesh.clone()),
         MeshMaterial2d(material.clone()),
         Transform::from_translation(centred_on + vec3(30.0, -30.0, 0.0)),
         team,
     ));
     commands.spawn((
-        Soldier::new(),
+        Soldier,
+        Health::new(100),
         Mesh2d(mesh.clone()),
         MeshMaterial2d(material.clone()),
         Transform::from_translation(centred_on + vec3(-30.0, 30.0, 0.0)),
@@ -91,19 +95,12 @@ fn spawn_soldier_group(
 }
 
 #[derive(Component)]
-pub struct Soldier {
-    pub hit_points: u32,
-}
-
-impl Soldier {
-    pub fn new() -> Self {
-        Self { hit_points: 100 }
-    }
-}
+pub struct Soldier;
 
 #[derive(Bundle)]
 pub struct SoldierBundle {
     soldier: Soldier,
+    health: Health,
     mesh: Mesh2d,
     material: MeshMaterial2d<ColorMaterial>,
     transform: Transform,
