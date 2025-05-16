@@ -1,5 +1,6 @@
 use bevy::prelude::*;
 
+use crate::arrow::Arrow;
 use crate::team::Team;
 
 pub struct SoldierPlugin;
@@ -7,7 +8,32 @@ pub struct SoldierPlugin;
 impl Plugin for SoldierPlugin {
     fn build(&self, app: &mut App) {
         println!("Built Soldier Plugin!");
-        app.add_systems(Startup, spawn_initial_soldiers);
+        app.add_systems(Startup, spawn_initial_soldiers)
+            .add_systems(Update, injure_soldiers)
+            .add_systems(Update, kill_soldiers);
+    }
+}
+
+fn injure_soldiers(
+    mut commands: Commands,
+    soldiers: Query<(&mut Soldier, &Transform)>,
+    arrows: Query<(Entity, &Transform), With<Arrow>>,
+) {
+    for (mut soldier, soldier_transform) in soldiers {
+        for (entity, arrow_transform) in arrows {
+            if (arrow_transform.translation - soldier_transform.translation).length() < 5.0 {
+                commands.entity(entity).despawn();
+                soldier.hit_points = soldier.hit_points.saturating_sub(10);
+            }
+        }
+    }
+}
+
+fn kill_soldiers(mut commands: Commands, soldiers: Query<(Entity, &Soldier)>) {
+    for (entity, soldier) in soldiers {
+        if soldier.hit_points == 0 {
+            commands.entity(entity).despawn();
+        }
     }
 }
 
