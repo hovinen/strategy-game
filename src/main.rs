@@ -5,6 +5,11 @@ fn main() {
         .add_plugins(DefaultPlugins)
         .add_systems(Startup, spawn_initial_soliders)
         .add_systems(Startup, add_ui)
+        .add_systems(Update, shoot_arrows)
+        .insert_resource(ShootArrowsTimer(Timer::from_seconds(
+            2.0,
+            TimerMode::Repeating,
+        )))
         .run();
 }
 
@@ -59,27 +64,56 @@ fn spawn_soldier_group(
         Soldier::new(),
         Mesh2d(mesh.clone()),
         MeshMaterial2d(material.clone()),
-        Transform::from_translation(centred_on + Vec3::new(30.0, 30.0, 0.0)),
+        Transform::from_translation(centred_on + vec3(30.0, 30.0, 0.0)),
         team,
     ));
     commands.spawn((
         Soldier::new(),
         Mesh2d(mesh.clone()),
         MeshMaterial2d(material.clone()),
-        Transform::from_translation(centred_on + Vec3::new(30.0, -30.0, 0.0)),
+        Transform::from_translation(centred_on + vec3(30.0, -30.0, 0.0)),
         team,
     ));
     commands.spawn((
         Soldier::new(),
         Mesh2d(mesh.clone()),
         MeshMaterial2d(material.clone()),
-        Transform::from_translation(centred_on + Vec3::new(-30.0, 30.0, 0.0)),
+        Transform::from_translation(centred_on + vec3(-30.0, 30.0, 0.0)),
         team,
     ));
 }
 
 fn add_ui(mut commands: Commands) {
     commands.spawn(Camera2d);
+}
+
+fn shoot_arrows(
+    mut commands: Commands,
+    soldiers: Query<(&Team, &Transform), With<Soldier>>,
+    mut meshes: ResMut<Assets<Mesh>>,
+    mut materials: ResMut<Assets<ColorMaterial>>,
+    time: Res<Time>,
+    mut timer: ResMut<ShootArrowsTimer>,
+) {
+    if !timer.0.tick(time.delta()).just_finished() {
+        return;
+    }
+    let material = materials.add(ColorMaterial::from_color(Color::WHITE));
+    for (team, origin) in soldiers {
+        if let Some((_, target)) = soldiers.iter().find(|(t, _)| *t != team) {
+            let mesh = meshes.add(Triangle2d::new(
+                vec2(-5.0, -5.0),
+                vec2(5.0, -5.0),
+                vec2(0.0, 5.0),
+            ));
+            commands.spawn((
+                Arrow::new(origin.translation, target.translation),
+                origin.clone(),
+                Mesh2d(mesh.clone()),
+                MeshMaterial2d(material.clone()),
+            ));
+        }
+    }
 }
 
 #[derive(Component)]
@@ -95,5 +129,18 @@ impl Soldier {
 
 #[derive(Component)]
 struct Arrow {
-    velocity: Vec2,
+    velocity: Vec3,
+    target: Vec3,
 }
+
+impl Arrow {
+    fn new(origin: Vec3, target: Vec3) -> Self {
+        Self {
+            velocity: (target - origin).normalize(),
+            target,
+        }
+    }
+}
+
+#[derive(Resource)]
+struct ShootArrowsTimer(Timer);
